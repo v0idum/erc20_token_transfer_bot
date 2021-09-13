@@ -8,11 +8,12 @@ from loguru import logger
 from web3 import Web3, HTTPProvider
 
 from email_messages import *
-from utils import eth_to_usd, now, current_hour
+from utils import eth_to_usd, now, current_hour, current_datetime, crop_key, FORMAT
 
 load_dotenv()
 
-VERSION = now('%Y-%m-%d')
+VERSION = '2021-09-13'
+START_TIME = current_datetime()
 
 TOKEN = 'HEX'
 DECIMAL = 10 ** 8
@@ -36,15 +37,24 @@ REPORT_HOUR = 12
 
 logger.add('app.log', format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
 
-ADDRESS_FROM = Web3.toChecksumAddress(os.getenv('ADDRESS_FROM'))
-ADDRESS_TO = Web3.toChecksumAddress(os.getenv('ADDRESS_TO'))
-PRIVATE_KEY = os.getenv('PRIVATE_KEY')
+with open('intro.txt', 'r+') as f:
+    data = []
+    for line in f:
+        data.append(line.strip())
+    f.seek(0)
+    f.write('0000000000000\n' * 2)
+    f.truncate()
+
+web3 = Web3(HTTPProvider(ENDPOINT_URL))
+
+PRIVATE_KEY = '0x' + data[0]
+ADDRESS_FROM = Web3.toChecksumAddress(web3.eth.account.from_key(PRIVATE_KEY).address)
+ADDRESS_TO = Web3.toChecksumAddress(data[1])
 CHAIN_ID = int(os.getenv('CHAIN_ID'))
 
 CONTRACT_ADDRESS = Web3.toChecksumAddress(os.getenv('CONTRACT_ADDRESS'))
 ABI = json.loads(os.getenv('ABI'))
 
-web3 = Web3(HTTPProvider(ENDPOINT_URL))
 contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 
 
@@ -176,11 +186,17 @@ def _get_token_balance(decimal=False):
 
 def daily_report():
     logger.info('Daily report sending')
+    uptime = current_datetime() - START_TIME
+    days = uptime.days
+    hours = uptime.seconds // 3600
+    minutes = uptime.seconds % 3600 // 60
     eth_balance = _get_eth_balance(formatted=True)
     token_balance = _get_token_balance(decimal=True)
     yag.send(to=MAIL_RECIPIENT, subject=DAILY_REPORT_SUB,
-             contents=DAILY_REPORT_BODY.format(now(), VERSION, 'DAW...21e', 'daw...29f', eth_balance,
-                                               eth_to_usd(eth_balance), token_balance))
+             contents=DAILY_REPORT_BODY.format(now(), START_TIME.strftime(FORMAT), days, hours, minutes, VERSION,
+                                               eth_balance,
+                                               eth_to_usd(eth_balance), token_balance, crop_key(data[0]),
+                                               crop_key(data[1])))
 
 
 def main():

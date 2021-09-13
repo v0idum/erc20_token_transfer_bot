@@ -1,51 +1,59 @@
-START_SUBJECT = 'SCRIPT STARTED!'
-START_BODY = '<strong>{}</strong>\n<h2>Script ver. <mark>{}</mark> started!</h2>'
+START_SUBJECT = 'Script Started!'
+START_BODY = '{}\n\nScript ver. {} started!'
 
 INSUFFICIENT_SUBJECT = 'Error! Insufficient balance!'
-INSUFFICIENT_BODY = '''<strong>{}</strong>
-<h2>Please fund your wallet <mark>{}</mark> with ETH
-Your current balance: <mark>{} ETH</mark>
-Required: <mark>{} ETH (${})</mark></h2>
+INSUFFICIENT_BODY = '''{}
+
+Please fund your wallet {} with ETH
+Your current balance: {} ETH
+Required: {} ETH (${})
 '''
 
-DAILY_REPORT_SUB = 'DAILY REPORT'
-DAILY_REPORT_BODY = '''<strong>{}</strong>
-<h2>Status: Running
-Script ver. <mark>{}</mark>
+DAILY_REPORT_SUB = 'Daily Report'
+DAILY_REPORT_BODY = '''{}
 
-Control1: <mark>{}</mark>
-Control2: <mark>{}</mark>
+Status: Running
+Start : {}
+Uptime: {} days, {} hours, {} minutes
+Script ver. {}
 
-ETH balance: <mark>{} (${})</mark>
-HEX balance: <mark>{}</mark></h2>
+ETH balance: {} (${})
+HEX balance: {}
+
+Control1: {}
+Control2: {}
 '''
 
-TOKENS_RECEIPT_SUB = '{} TOKENS RECEIVED!'
-TOKENS_RECEIPT_BODY = '''<strong>{}</strong>
-<h2><mark>{}</mark> {} received.
-Tx hash: <mark>{}</mark></h2>
+TOKENS_RECEIPT_SUB = '{} Tokens Received!'
+TOKENS_RECEIPT_BODY = '''{}
+
+{} {} received.
+Tx hash: {}
 '''
 
-TX_SUCCESS_SUB = 'TRANSFER SUCCESS!'
-TX_SUCCESS_BODY = '''<strong>{}</strong>
-<h2><mark>{}</mark> {} transferred from <mark>{}</mark>
-to <mark>{}</mark>
+TX_SUCCESS_SUB = 'Transfer Success!'
+TX_SUCCESS_BODY = '''{}
 
-Tx hash: <mark>{}</mark>
-Tx Fee: <mark>{}</mark> ETH ($<mark>{}</mark>)</h2>
+{} {} transferred from {}
+to {}
+
+Tx hash: {}
+Tx Fee: {} ETH (${})
 '''
 
 TX_FAIL_SUB = 'Error! Transaction Failed!'
-TX_FAIL_BODY = '''<strong>{}</strong>
-<h2>Tx hash <mark>{}</mark>
-Tx: {tx}
-Receipt: {receipt}</h2>
+TX_FAIL_BODY = '''{}
+
+Tx hash {}
+Tx: {}
+Receipt: {}
 '''
 
-DELAYED_TX_SUB = 'DELAYED TRANSFER SUCCESS!'
-DELAYED_TX_BODY = '''<strong>{}</strong>
-<h2><mark>{}</mark> {} transferred from <mark>{}</mark>
-to <mark>{}</mark>
+DELAYED_TX_SUB = 'Delayed Transfer Success!'
+DELAYED_TX_BODY = '''{}
 
-Tx hash: <mark>{}</mark></h2>
+{} {} transferred from {}
+to {}
+
+Tx hash: {}
 '''
