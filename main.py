@@ -155,23 +155,27 @@ def check_tokens_to_send():
 def event_loop(event_filter, poll_interval):
     logger.info('In event monitoring loop:')
     while True:
-        for transfer in event_filter.get_new_entries():
-            if transfer.args.to == ADDRESS_FROM:
-                logger.info(f'New Transfer Event: {transfer}')
-                logger.info(f'{TOKEN} received: {transfer.args.value / DECIMAL}')
-                yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(TOKEN),
-                         contents=TOKENS_RECEIPT_BODY.format(now(), transfer.args.value / DECIMAL, TOKEN,
-                                                             Web3.toHex(transfer.transactionHash)))
-                check_tokens_to_send()
-        time.sleep(poll_interval)
+        try:
+            for transfer in event_filter.get_new_entries():
+                if transfer.args.to == ADDRESS_FROM:
+                    logger.info(f'New Transfer Event: {transfer}')
+                    logger.info(f'{TOKEN} received: {transfer.args.value / DECIMAL}')
+                    yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(TOKEN),
+                             contents=TOKENS_RECEIPT_BODY.format(now(), transfer.args.value / DECIMAL, TOKEN,
+                                                                 Web3.toHex(transfer.transactionHash)))
+                    check_tokens_to_send()
+            time.sleep(poll_interval)
 
-        hour = current_hour()
-        global REPORTED_TODAY
-        if not REPORTED_TODAY and hour == REPORT_HOUR:
-            daily_report()
-            REPORTED_TODAY = True
-        if REPORTED_TODAY and hour > REPORT_HOUR:
-            REPORTED_TODAY = False
+            hour = current_hour()
+            global REPORTED_TODAY
+            if not REPORTED_TODAY and hour == REPORT_HOUR:
+                daily_report()
+                REPORTED_TODAY = True
+            if REPORTED_TODAY and hour > REPORT_HOUR:
+                REPORTED_TODAY = False
+        except Exception:
+            logger.exception('Exception in event monitoring loop')
+            time.sleep(poll_interval)
 
 
 def _get_eth_balance(formatted=False, balance=None):
