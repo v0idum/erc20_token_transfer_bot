@@ -12,7 +12,7 @@ from utils import eth_to_usd, now, current_hour, current_datetime, crop_key, FOR
 
 load_dotenv()
 
-VERSION = '2021-09-13'
+VERSION = '2021-09-19'
 START_TIME = current_datetime()
 
 TOKEN = 'HEX'
@@ -45,17 +45,9 @@ with open('intro.txt', 'r+') as f:
     f.write('0000000000000\n' * 2)
     f.truncate()
 
-web3 = Web3(HTTPProvider(ENDPOINT_URL))
-
-PRIVATE_KEY = '0x' + data[0]
-ADDRESS_FROM = Web3.toChecksumAddress(web3.eth.account.from_key(PRIVATE_KEY).address)
-ADDRESS_TO = Web3.toChecksumAddress(data[1])
+global WEB3, PRIVATE_KEY, ADDRESS_FROM, ADDRESS_TO, CONTRACT
 CHAIN_ID = int(os.getenv('CHAIN_ID'))
-
-CONTRACT_ADDRESS = Web3.toChecksumAddress(os.getenv('CONTRACT_ADDRESS'))
 ABI = json.loads(os.getenv('ABI'))
-
-contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 
 
 def wait_until_balance_funded(estimated_max_fee):
@@ -71,7 +63,7 @@ def wait_until_balance_funded(estimated_max_fee):
         time.sleep(20)
         current = _get_eth_balance()
     logger.info('Balance Funded')
-    logger.info(f'Current ETH: {web3.fromWei(current, "ether")}')
+    logger.info(f'Current ETH: {Web3.fromWei(current, "ether")}')
 
 
 def calc_transfer_fee(gas_limit, gas_price):
@@ -83,9 +75,9 @@ def transfer_tokens(amount: int) -> bool:
     logger.info('Transferring tokens')
     global BONUS_GAS_PRICE, TRANSFER_STARTED, TX_HASH
 
-    transfer = contract.functions.transfer(ADDRESS_TO, amount)
+    transfer = CONTRACT.functions.transfer(ADDRESS_TO, amount)
     gas_limit = transfer.estimateGas({'from': ADDRESS_FROM}) + BONUS_GAS
-    gas_price = web3.eth.gas_price + BONUS_GAS_PRICE
+    gas_price = WEB3.eth.gas_price + BONUS_GAS_PRICE
     estimated_max_fee = calc_transfer_fee(gas_limit, gas_price)
 
     logger.info(f'Gas limit: {gas_limit}, Gas price, gwei: {Web3.fromWei(gas_price, "gwei")}')
@@ -93,15 +85,15 @@ def transfer_tokens(amount: int) -> bool:
 
     transaction = transfer.buildTransaction(
         {'chainId': CHAIN_ID, 'gas': gas_limit, 'gasPrice': gas_price,
-         'nonce': web3.eth.getTransactionCount(ADDRESS_FROM)})
-    signed_txn = web3.eth.account.signTransaction(transaction, PRIVATE_KEY)
+         'nonce': WEB3.eth.getTransactionCount(ADDRESS_FROM)})
+    signed_txn = WEB3.eth.account.signTransaction(transaction, PRIVATE_KEY)
 
     try:
-        tx_hash = web3.eth.sendRawTransaction(signed_txn.rawTransaction)
+        tx_hash = WEB3.eth.sendRawTransaction(signed_txn.rawTransaction)
         TX_HASH = Web3.toHex(tx_hash)
         logger.info(TX_HASH)
-        receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        tx = web3.eth.get_transaction(tx_hash)
+        receipt = WEB3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+        tx = WEB3.eth.get_transaction(tx_hash)
         logger.info(f'Tx: {tx}')
         logger.info(f'Receipt: {receipt}')
         if receipt.status == 1:
@@ -155,36 +147,32 @@ def check_tokens_to_send():
 def event_loop(event_filter, poll_interval):
     logger.info('In event monitoring loop:')
     while True:
-        try:
-            for transfer in event_filter.get_new_entries():
-                if transfer.args.to == ADDRESS_FROM:
-                    logger.info(f'New Transfer Event: {transfer}')
-                    logger.info(f'{TOKEN} received: {transfer.args.value / DECIMAL}')
-                    yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(TOKEN),
-                             contents=TOKENS_RECEIPT_BODY.format(now(), transfer.args.value / DECIMAL, TOKEN,
-                                                                 Web3.toHex(transfer.transactionHash)))
-                    check_tokens_to_send()
-            time.sleep(poll_interval)
+        for transfer in event_filter.get_new_entries():
+            if transfer.args.to == ADDRESS_FROM:
+                logger.info(f'New Transfer Event: {transfer}')
+                logger.info(f'{TOKEN} received: {transfer.args.value / DECIMAL}')
+                yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(TOKEN),
+                         contents=TOKENS_RECEIPT_BODY.format(now(), transfer.args.value / DECIMAL, TOKEN,
+                                                             Web3.toHex(transfer.transactionHash)))
+                check_tokens_to_send()
+        time.sleep(poll_interval)
 
-            hour = current_hour()
-            global REPORTED_TODAY
-            if not REPORTED_TODAY and hour == REPORT_HOUR:
-                daily_report()
-                REPORTED_TODAY = True
-            if REPORTED_TODAY and hour > REPORT_HOUR:
-                REPORTED_TODAY = False
-        except Exception:
-            logger.exception('Exception in event monitoring loop')
-            time.sleep(poll_interval)
+        hour = current_hour()
+        global REPORTED_TODAY
+        if not REPORTED_TODAY and hour == REPORT_HOUR:
+            daily_report()
+            REPORTED_TODAY = True
+        if REPORTED_TODAY and hour > REPORT_HOUR:
+            REPORTED_TODAY = False
 
 
 def _get_eth_balance(formatted=False, balance=None):
-    balance = web3.eth.getBalance(ADDRESS_FROM) if balance is None else balance
-    return format(web3.fromWei(balance, "ether"), '.5f') if formatted else balance
+    balance = WEB3.eth.getBalance(ADDRESS_FROM) if balance is None else balance
+    return format(WEB3.fromWei(balance, "ether"), '.5f') if formatted else balance
 
 
 def _get_token_balance(decimal=False):
-    balance = contract.functions.balanceOf(ADDRESS_FROM).call()
+    balance = CONTRACT.functions.balanceOf(ADDRESS_FROM).call()
     return balance if not decimal else balance / DECIMAL
 
 
@@ -204,13 +192,28 @@ def daily_report():
 
 
 def main():
+    global WEB3, PRIVATE_KEY, ADDRESS_FROM, ADDRESS_TO, CONTRACT
+    WEB3 = Web3(HTTPProvider(ENDPOINT_URL))
+
+    PRIVATE_KEY = data[0]
+    ADDRESS_FROM = Web3.toChecksumAddress(WEB3.eth.account.from_key(PRIVATE_KEY).address)
+    ADDRESS_TO = Web3.toChecksumAddress(data[1])
+
+    CONTRACT_ADDRESS = Web3.toChecksumAddress(os.getenv('CONTRACT_ADDRESS'))
+    CONTRACT = WEB3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
+
     logger.info(f'Started ver. {VERSION}')
     yag.send(to=MAIL_RECIPIENT, subject=START_SUBJECT,
              contents=START_BODY.format(now(), VERSION))
-    event_filter = contract.events.Transfer.createFilter(fromBlock='latest')
+    event_filter = CONTRACT.events.Transfer.createFilter(fromBlock='latest')
     check_tokens_to_send()
     event_loop(event_filter, 5)
 
 
 if __name__ == '__main__':
-    main()
+    while True:
+        try:
+            main()
+        except Exception:
+            logger.exception('Exception in main()')
+            time.sleep(5)
