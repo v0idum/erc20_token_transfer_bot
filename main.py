@@ -12,7 +12,7 @@ from utils import eth_to_usd, now, current_hour, current_datetime, crop_key, FOR
 
 load_dotenv()
 
-VERSION = '2021-09-19'
+VERSION = '2021-09-23'
 START_TIME = current_datetime()
 
 TOKEN = 'HEX'
@@ -202,18 +202,18 @@ def main():
     CONTRACT_ADDRESS = Web3.toChecksumAddress(os.getenv('CONTRACT_ADDRESS'))
     CONTRACT = WEB3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI)
 
-    logger.info(f'Started ver. {VERSION}')
-    yag.send(to=MAIL_RECIPIENT, subject=START_SUBJECT,
-             contents=START_BODY.format(now(), VERSION))
     event_filter = CONTRACT.events.Transfer.createFilter(fromBlock='latest')
     check_tokens_to_send()
     event_loop(event_filter, 5)
 
 
 if __name__ == '__main__':
+    logger.info(f'Started ver. {VERSION}')
+    yag.send(to=MAIL_RECIPIENT, subject=START_SUBJECT,
+             contents=START_BODY.format(now(), VERSION))
     while True:
         try:
             main()
-        except Exception:
-            logger.exception('Exception in main()')
+        except Exception as ex:
+            logger.error(f'Exception in main() {ex}')
             time.sleep(5)
