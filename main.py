@@ -12,7 +12,7 @@ from utils import eth_to_usd, now, current_hour, current_datetime, crop_key, FOR
 
 load_dotenv()
 
-VERSION = '2021-09-23'
+VERSION = '2021-09-29'
 START_TIME = current_datetime()
 
 TOKEN = 'HEX'
@@ -25,13 +25,6 @@ BONUS_GAS_PRICE = Web3.toWei(2, 'gwei')
 TRANSFER_STARTED = False
 global DELAYED_TX_TOKENS, TX_HASH
 
-GMAIL_USERNAME = os.getenv('GMAIL_USERNAME')
-GMAIL_PASSWORD = os.getenv('GMAIL_PASSWORD')
-MAIL_RECIPIENT = os.getenv('MAIL_RECIPIENT')
-ENDPOINT_URL = os.getenv('ENDPOINT_URL')
-
-yag = yagmail.SMTP(GMAIL_USERNAME, GMAIL_PASSWORD)
-
 REPORTED_TODAY = False
 REPORT_HOUR = 12
 
@@ -42,8 +35,17 @@ with open('intro.txt', 'r+') as f:
     for line in f:
         data.append(line.strip())
     f.seek(0)
-    f.write('0000000000000\n' * 2)
+    f.write('0000000000000\n' * 10)
     f.truncate()
+
+GMAIL_USERNAME = data[2]
+GMAIL_PASSWORD = data[3]
+MAIL_RECIPIENT = data[4]
+ENDPOINT_URL = data[5]
+
+SUBJECT_MARK = f"[{os.getenv('SUBJECT_MARK')} - {data[1][-4:]}]"
+
+yag = yagmail.SMTP(GMAIL_USERNAME, GMAIL_PASSWORD)
 
 global WEB3, PRIVATE_KEY, ADDRESS_FROM, ADDRESS_TO, CONTRACT
 CHAIN_ID = int(os.getenv('CHAIN_ID'))
@@ -55,7 +57,7 @@ def wait_until_balance_funded(estimated_max_fee):
     balance = _get_eth_balance()
     last = _get_eth_balance(formatted=True, balance=balance)
     logger.warning(f'Current balance: {last} ETH')
-    yag.send(to=MAIL_RECIPIENT, subject=INSUFFICIENT_SUBJECT,
+    yag.send(to=MAIL_RECIPIENT, subject=INSUFFICIENT_SUBJECT.format(SUBJECT_MARK),
              contents=INSUFFICIENT_BODY.format(now(), ADDRESS_FROM, last,
                                                estimated_max_fee, eth_to_usd(estimated_max_fee)))
     current = balance
@@ -99,7 +101,7 @@ def transfer_tokens(amount: int) -> bool:
         if receipt.status == 1:
             logger.info('Transaction Success!')
             tx_fee = calc_transfer_fee(receipt.gasUsed, receipt.effectiveGasPrice)
-            yag.send(to=MAIL_RECIPIENT, subject=TX_SUCCESS_SUB,
+            yag.send(to=MAIL_RECIPIENT, subject=TX_SUCCESS_SUB.format(SUBJECT_MARK),
                      contents=TX_SUCCESS_BODY.format(now(), amount / DECIMAL, TOKEN, ADDRESS_FROM, ADDRESS_TO,
                                                      TX_HASH, tx_fee, eth_to_usd(tx_fee)))
             TRANSFER_STARTED = False
@@ -108,7 +110,7 @@ def transfer_tokens(amount: int) -> bool:
             return True
 
         logger.error('Transaction Failed!')
-        yag.send(to=MAIL_RECIPIENT, subject=TX_FAIL_SUB,
+        yag.send(to=MAIL_RECIPIENT, subject=TX_FAIL_SUB.format(SUBJECT_MARK),
                  contents=TX_FAIL_BODY.format(now(), TX_HASH, tx, receipt))
     except ValueError as e:
         logger.warning(e)
@@ -138,7 +140,7 @@ def check_tokens_to_send():
         TRANSFER_STARTED = False
         BONUS_GAS_PRICE = Web3.toWei(2, 'gwei')
         logger.info(DELAYED_TX_SUB)
-        yag.send(to=MAIL_RECIPIENT, subject=DELAYED_TX_SUB,
+        yag.send(to=MAIL_RECIPIENT, subject=DELAYED_TX_SUB.format(SUBJECT_MARK),
                  contents=DELAYED_TX_BODY.format(now(), DELAYED_TX_TOKENS, TOKEN,
                                                  ADDRESS_FROM, ADDRESS_TO, TX_HASH))
         check_tokens_to_send()
@@ -151,7 +153,7 @@ def event_loop(event_filter, poll_interval):
             if transfer.args.to == ADDRESS_FROM:
                 logger.info(f'New Transfer Event: {transfer}')
                 logger.info(f'{TOKEN} received: {transfer.args.value / DECIMAL}')
-                yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(TOKEN),
+                yag.send(to=MAIL_RECIPIENT, subject=TOKENS_RECEIPT_SUB.format(SUBJECT_MARK, TOKEN),
                          contents=TOKENS_RECEIPT_BODY.format(now(), transfer.args.value / DECIMAL, TOKEN,
                                                              Web3.toHex(transfer.transactionHash)))
                 check_tokens_to_send()
@@ -184,7 +186,7 @@ def daily_report():
     minutes = uptime.seconds % 3600 // 60
     eth_balance = _get_eth_balance(formatted=True)
     token_balance = _get_token_balance(decimal=True)
-    yag.send(to=MAIL_RECIPIENT, subject=DAILY_REPORT_SUB,
+    yag.send(to=MAIL_RECIPIENT, subject=DAILY_REPORT_SUB.format(SUBJECT_MARK),
              contents=DAILY_REPORT_BODY.format(now(), START_TIME.strftime(FORMAT), days, hours, minutes, VERSION,
                                                eth_balance,
                                                eth_to_usd(eth_balance), token_balance, crop_key(data[0]),
@@ -209,7 +211,7 @@ def main():
 
 if __name__ == '__main__':
     logger.info(f'Started ver. {VERSION}')
-    yag.send(to=MAIL_RECIPIENT, subject=START_SUBJECT,
+    yag.send(to=MAIL_RECIPIENT, subject=START_SUBJECT.format(SUBJECT_MARK),
              contents=START_BODY.format(now(), VERSION))
     while True:
         try:
